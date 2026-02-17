@@ -36,18 +36,15 @@ def get_derived_key(password, salt):
     return scrypt(password.encode(), salt, 32, N=2**14, r=8, p=1)
 
 def encrypt_file(file_path, password):
-    # Clean the path
     file_path = file_path.strip('"').strip("'")
     if not os.path.exists(file_path):
         print(f"❌ Error: File not found at {file_path}")
         return
 
-    # Heartbeat delay to ensure Windows has finished writing the file
-    time.sleep(0.5)
+    time.sleep(0.5) # Windows file system heartbeat
     
-    # Check if file is empty
     if os.path.getsize(file_path) == 0:
-        print("⚠️ Warning: Source file is 0 bytes. Please save content first.")
+        print("⚠️ Warning: Source file is empty. Save content first!")
         return
 
     if not verify_user(): return
@@ -58,8 +55,6 @@ def encrypt_file(file_path, password):
     cipher = AES.new(key, AES.MODE_GCM)
     output_file = file_path + ".aegis"
     
-    # We read the whole file for smaller files, or stream for larger ones
-    # This combination prevents the 'empty file' issue on Windows
     with open(file_path, 'rb') as f_in, open(output_file, 'wb') as f_out:
         f_out.write(salt)
         f_out.write(cipher.nonce)
@@ -76,15 +71,23 @@ def encrypt_file(file_path, password):
 
     print(f"✅ Success! Created: {output_file}")
     
-    # --- THE SHREDDER ---
+    # --- NEW: THE DOUBLE-CONFIRM SHREDDER ---
     print("\n" + "!" * 40)
-    confirm = input(f"🛡️  SHRED ORIGINAL? Delete '{os.path.basename(file_path)}'? (y/n): ").lower()
-    if confirm == 'y':
-        try:
-            os.remove(file_path)
-            print(f"🗑️  Original file shredded.")
-        except Exception as e:
-            print(f"⚠️  Could not shred file: {e}")
+    confirm_1 = input(f"🛡️  SHRED ORIGINAL? Delete '{os.path.basename(file_path)}'? (y/n): ").lower()
+    
+    if confirm_1 == 'y':
+        # The Second Check
+        print("⚠️  WARNING: This action is permanent and cannot be undone!")
+        confirm_2 = input(f"   ARE YOU ABSOLUTELY SURE? (type 'yes' to confirm): ").lower()
+        
+        if confirm_2 == 'yes':
+            try:
+                os.remove(file_path)
+                print(f"🗑️  Original file shredded successfully.")
+            except Exception as e:
+                print(f"⚠️  Could not shred file: {e}")
+        else:
+            print("📁 Double-check failed. Original file kept.")
     else:
         print("📁 Original file kept.")
 
@@ -99,17 +102,21 @@ def decrypt_file(file_path, password):
         salt = f_in.read(SALT_SIZE)
         nonce = f_in.read(16)
         
-        # Calculate size of ciphertext
         file_size = os.path.getsize(file_path)
         encrypted_data_size = file_size - SALT_SIZE - 16 - 16
         
         key = get_derived_key(password, salt)
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
         
-        # Smart naming: removes .aegis and restores original extension
-        output_file = file_path.replace(".aegis", "_decrypted")
-        if not any(ext in output_file for ext in ['.txt', '.jpg', '.png', '.pdf']):
-            output_file += ".txt" # Default to txt if unknown
+        original_name = file_path.replace(".aegis", "")
+        output_file = original_name
+        
+        # Conflict Handling
+        counter = 1
+        while os.path.exists(output_file):
+            name_part, ext_part = os.path.splitext(original_name)
+            output_file = f"{name_part}({counter}){ext_part}"
+            counter += 1
 
         with open(output_file, 'wb') as f_out:
             for _ in range(0, encrypted_data_size, BUFFER_SIZE):
@@ -121,7 +128,7 @@ def decrypt_file(file_path, password):
                 cipher.verify(tag)
                 f_out.flush()
                 os.fsync(f_out.fileno())
-                print(f"🔓 Decrypted: {output_file}")
+                print(f"🔓 Success! File restored as: {os.path.basename(output_file)}")
             except ValueError:
                 print("❌ ERROR: Wrong password or corrupted file!")
                 f_out.close()
