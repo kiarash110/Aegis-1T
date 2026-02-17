@@ -40,7 +40,3 @@ Set up your environment in seconds by running these commands:
 git clone https://github.com/kiarash110/Aegis-1T.git
 # Enter the directory
 cd Aegis-1T
-
-```bash
-# Install security dependencies
-pip install -r requirements.txt
