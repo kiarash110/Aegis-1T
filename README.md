@@ -1,4 +1,3 @@
-# Aegis-1T
 # 🛡️ Aegis-1T: Terabyte-Scale MFA Vault
 
 Aegis-1T is a high-performance cryptographic utility designed to secure sensitive data ranging from 1-byte configuration files to 1TB databases. It bridges the gap between massive data storage and physical multi-factor authentication (MFA).
@@ -17,7 +16,7 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 * **Authentication:** `pyotp`, `qrcode`
 
 ## 📦 Installation
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone [https://github.com/kiarash110/Aegis-1T.git](https://github.com/kiarash110/Aegis-1T.git)
    cd Aegis-1T
