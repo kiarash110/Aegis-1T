@@ -41,7 +41,7 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 
 ## **📱 TOTP AUTHENTICATOR**
 > **You will need a mobile application to generate the physical 6-digit 2FA security keys.**
-> ### **[Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2) | [Aegis MFA](https://getaegis.app/)**
+> ### **[Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2)
 
 
 ## **📦 INSTALLATION**
