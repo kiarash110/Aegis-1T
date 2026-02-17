@@ -38,12 +38,12 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 
 ## **🐙 [GIT SCM](https://git-scm.com/downloads)**
 > **Required for secure version control, repository management, and cloning the Aegis-1T source code.**
-📱 TOTP AUTHENTICATOR
-🔐 REQUIRED: PHYSICAL SECOND FACTOR
-You MUST have a mobile application installed to generate the physical 6-digit 2FA security keys required to unlock the vault.
 
-✅ GOOGLE AUTHENTICATOR — INDUSTRY STANDARD
-🛡️ AEGIS MFA — RECOMMENDED (OPEN SOURCE)
+## **📱 TOTP AUTHENTICATOR**
+**🔐 REQUIRED: PHYSICAL SECOND FACTOR**
+>You MUST have a mobile application installed to generate the physical 6-digit 2FA security keys required to unlock the vault.
+
+**✅ GOOGLE AUTHENTICATOR — INDUSTRY STANDARD**
 
 ---
 
