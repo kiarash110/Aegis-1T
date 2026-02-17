@@ -80,8 +80,6 @@ pip install -r requirements.txt
 ## **✅ THE FINAL SECURITY CHECKLIST**
 ## **🛡️ 1. CONFIGURE YOUR .GITIGNORE**
 ```To prevent accidental leakage of your private keys to the public web, ensure your .gitignore file contains these exact lines:
-
-
 .env
 mfa_setup.png
 __pycache__/
@@ -90,7 +88,6 @@ __pycache__/
 ## **📦 2. VERIFY YOUR REQUIREMENTS.TXT**
 Ensure your environment has every cryptographic library needed to run the Aegis engine:
 ```
-
 pycryptodome
 argon2-cffi
 pyotp
@@ -99,9 +96,9 @@ python-dotenv
 pillow
 ```
 ## **📱 3. CRITICAL: SCAN & DESTROY**
-## **STEP 1: Scan the mfa_setup.png into your mobile app.*
-## **STEP 2: DELETE THE PNG FILE FROM YOUR DISK IMMEDIATELY.**
-## **STEP 3: Never store a digital copy of your QR code on any device connected to the internet.*
+## *STEP 1: Scan the mfa_setup.png into your mobile app.*
+## *STEP 2: DELETE THE PNG FILE FROM YOUR DISK IMMEDIATELY.*
+## *STEP 3: Never store a digital copy of your QR code on any device connected to the internet.*
 
 ---
 
