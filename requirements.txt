@@ -2,4 +2,8 @@ pycryptodome
 argon2-cffi
 pyotp
 qrcode
+python-dotenvpycryptodome
+argon2-cffi
+pyotp
+qrcode
 python-dotenv
