@@ -15,14 +15,14 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 * **Key Stretching:** `argon2-cffi`
 * **Authentication:** `pyotp`, `qrcode`
 
+## 📋 Prerequisites
+Before you begin, ensure you have the following installed:
+* **Python 3.12+** - [Download Python](https://www.python.org/downloads/)
+* **Git** - [Download Git](https://git-scm.com/downloads) (Required for cloning)
+* **Smartphone** - With Google Authenticator or any TOTP app installed.
+
 ## 📦 Installation
 1. **Clone the repository:**
    ```bash
    git clone [https://github.com/kiarash110/Aegis-1T.git](https://github.com/kiarash110/Aegis-1T.git)
    cd Aegis-1T
-## 📋 Prerequisites
-
-Before you begin, ensure you have the following installed:
-* **Python 3.12+** - [Download Python](https://www.python.org/downloads/)
-* **Git** - [Download Git](https://git-scm.com/downloads) (Required for cloning)
-* **Smartphone** - With Google Authenticator or any TOTP app installed.
