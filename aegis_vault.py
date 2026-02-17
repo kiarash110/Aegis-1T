@@ -1,30 +1,33 @@
 import os
-import pyotp
 import time
+import pyotp
+from dotenv import load_dotenv
 from Crypto.Cipher import AES
-from Crypto.Protocol.KDF import scrypt
 from Crypto.Random import get_random_bytes
+from argon2.low_level import hash_secret_raw, Type
+
+# Load environment variables (for MFA secret)
+load_dotenv()
 
 # --- CONFIGURATION ---
-BUFFER_SIZE = 1024 * 1024  # 1MB chunks for performance
+BUFFER_SIZE = 1024 * 1024  # 1MB chunks
 SALT_SIZE = 16
 
 def get_mfa_secret():
-    if not os.path.exists(".env"):
+    secret = os.getenv("MFA_SECRET")
+    if not secret:
         print("❌ Error: MFA not set up. Run setup_mfa.py first!")
         return None
-    with open(".env", "r") as f:
-        for line in f:
-            if "MFA_SECRET=" in line:
-                return line.strip().split("=")[1]
-    return None
+    return secret
 
 def verify_user():
     secret = get_mfa_secret()
     if not secret: return False
+    
     totp = pyotp.TOTP(secret)
     print(f"\n[!] MFA Required for Vault Access")
     user_code = input("🛡️ Enter 6-digit code from your phone: ")
+    
     if totp.verify(user_code):
         print("✅ Access Granted!")
         return True
@@ -33,23 +36,33 @@ def verify_user():
         return False
 
 def get_derived_key(password, salt):
-    return scrypt(password.encode(), salt, 32, N=2**14, r=8, p=1)
+    """
+    Implements Argon2id Key Derivation.
+    This is memory-hard and time-hard to prevent GPU cracking.
+    """
+    return hash_secret_raw(
+        secret=password.encode(),
+        salt=salt,
+        time_cost=3,      # Iterations
+        memory_cost=65536, # 64MB RAM usage
+        parallelism=4,    # Threads
+        hash_len=32,      # 256-bit key
+        type=Type.ID      # Argon2id variant
+    )
 
 def encrypt_file(file_path, password):
     file_path = file_path.strip('"').strip("'")
     if not os.path.exists(file_path):
-        print(f"❌ Error: File not found at {file_path}")
+        print(f"❌ Error: File not found: {file_path}")
         return
 
-    time.sleep(0.5) # Windows file system heartbeat
-    
     if os.path.getsize(file_path) == 0:
-        print("⚠️ Warning: Source file is empty. Save content first!")
+        print("⚠️ Warning: Source file is empty.")
         return
 
     if not verify_user(): return
     
-    print(f"🔒 Encrypting...")
+    print(f"🔒 Encrypting using Argon2id...")
     salt = get_random_bytes(SALT_SIZE)
     key = get_derived_key(password, salt)
     cipher = AES.new(key, AES.MODE_GCM)
@@ -61,8 +74,7 @@ def encrypt_file(file_path, password):
         
         while True:
             chunk = f_in.read(BUFFER_SIZE)
-            if not chunk:
-                break
+            if not chunk: break
             f_out.write(cipher.encrypt(chunk))
             
         f_out.write(cipher.digest())
@@ -71,31 +83,30 @@ def encrypt_file(file_path, password):
 
     print(f"✅ Success! Created: {output_file}")
     
-    # --- NEW: THE DOUBLE-CONFIRM SHREDDER ---
+    # --- MANUAL SECURE SHREDDER ---
     print("\n" + "!" * 40)
     confirm_1 = input(f"🛡️  SHRED ORIGINAL? Delete '{os.path.basename(file_path)}'? (y/n): ").lower()
     
     if confirm_1 == 'y':
-        # The Second Check
-        print("⚠️  WARNING: This action is permanent and cannot be undone!")
-        confirm_2 = input(f"   ARE YOU ABSOLUTELY SURE? (type 'yes' to confirm): ").lower()
+        print("⚠️  WARNING: This is permanent!")
+        confirm_2 = input(f"   ARE YOU ABSOLUTELY SURE? (type 'yes'): ").lower()
         
         if confirm_2 == 'yes':
             try:
+                # Overwrite with zeros before deleting (Zero-Fill)
+                size = os.path.getsize(file_path)
+                with open(file_path, "ba+", buffering=0) as f:
+                    f.write(b"\x00" * size)
                 os.remove(file_path)
-                print(f"🗑️  Original file shredded successfully.")
+                print(f"🗑️  Original file zero-filled and shredded.")
             except Exception as e:
-                print(f"⚠️  Could not shred file: {e}")
-        else:
-            print("📁 Double-check failed. Original file kept.")
+                print(f"⚠️  Shred failed: {e}")
     else:
         print("📁 Original file kept.")
 
 def decrypt_file(file_path, password):
     file_path = file_path.strip('"').strip("'")
-    if not os.path.exists(file_path):
-        print("❌ Error: File not found.")
-        return
+    if not os.path.exists(file_path): return
     if not verify_user(): return
     
     with open(file_path, 'rb') as f_in:
@@ -103,19 +114,19 @@ def decrypt_file(file_path, password):
         nonce = f_in.read(16)
         
         file_size = os.path.getsize(file_path)
+        # Auth tag is the last 16 bytes
         encrypted_data_size = file_size - SALT_SIZE - 16 - 16
         
         key = get_derived_key(password, salt)
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
         
-        original_name = file_path.replace(".aegis", "")
-        output_file = original_name
-        
-        # Conflict Handling
+        output_file = file_path.replace(".aegis", "")
+        # Handle file conflicts
         counter = 1
+        original_name = output_file
         while os.path.exists(output_file):
-            name_part, ext_part = os.path.splitext(original_name)
-            output_file = f"{name_part}({counter}){ext_part}"
+            name, ext = os.path.splitext(original_name)
+            output_file = f"{name}({counter}){ext}"
             counter += 1
 
         with open(output_file, 'wb') as f_out:
@@ -126,16 +137,14 @@ def decrypt_file(file_path, password):
             tag = f_in.read(16)
             try:
                 cipher.verify(tag)
-                f_out.flush()
-                os.fsync(f_out.fileno())
-                print(f"🔓 Success! File restored as: {os.path.basename(output_file)}")
+                print(f"🔓 Success! Restored: {os.path.basename(output_file)}")
             except ValueError:
-                print("❌ ERROR: Wrong password or corrupted file!")
+                print("❌ ERROR: Verification failed. Wrong password or tampered file!")
                 f_out.close()
                 os.remove(output_file)
 
 if __name__ == "__main__":
-    print("\n--- 🛡️ Aegis-1T Vault Engine ---")
+    print("\n--- 🛡️ Aegis-1T Vault (Argon2id + AES-GCM) ---")
     action = input("Type 'E' to Encrypt or 'D' to Decrypt: ").upper()
     target = input("File path: ")
     secret_pass = input("Enter Vault Password: ")
