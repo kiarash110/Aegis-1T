@@ -40,11 +40,11 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 > **Required for secure version control, repository management, and cloning the Aegis-1T source code.**
 
 ## **📱 TOTP AUTHENTICATOR**
-**🔐 REQUIRED: PHYSICAL SECOND FACTOR**
+## **🔐 REQUIRED: PHYSICAL SECOND FACTOR**
 >You MUST have a mobile application installed to generate the physical 6-digit 2FA security keys required to unlock the vault.
 
-**✅ GOOGLE AUTHENTICATOR — INDUSTRY STANDARD**
-
+## **✅ [GOOGLE AUTHENTICATOR](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2) — INDUSTRY STANDARD**
+## **🍎 [GOOGLE AUTHENTICATOR (IOS/IPHONE)](https://apps.apple.com/us/app/google-authenticator/id388497605)**
 ---
 
 ## **📦 INSTALLATION**
