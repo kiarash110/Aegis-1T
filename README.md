@@ -64,31 +64,32 @@ pip install -r requirements.txt
 
 ```
 
-🔍 TROUBLESHOOTING
-❌ MFA "INVALID CODE" ERRORS
-🕒 SYNCHRONIZE YOUR SYSTEM CLOCK
-TOTP (2FA) codes are mathematically generated based on time. If your computer and phone are off by even 30 seconds, the code will fail. Ensure both devices are set to "Set Time Automatically."
+##**🔍 TROUBLESHOOTING**
+##**❌ 1. MFA "INVALID CODE" ERRORS**
+##**🕒 ACTION: SYNCHRONIZE YOUR SYSTEM CLOCK**
+TOTP (2FA) codes are mathematically generated based on time. If your computer and phone are off by even 30 seconds, the code will fail. Ensure both devices are set to "Set Time Automatically" in your system settings.
 
-📂 ACCESS DENIED / PERMISSION ERRORS
-🔑 ELEVATE USER PRIVILEGES
+##**📂 2. ACCESS DENIED / PERMISSION ERRORS**
+##**🔑 ACTION: ELEVATE USER PRIVILEGES**
 Encryption requires direct write access to your disk. If you are processing files in protected directories, run your terminal as an Administrator (Windows) or use sudo (Linux/Mac).
 
-📉 PERFORMANCE & HANGING
-⚡ I/O SPEED LIMITATIONS
-When processing 1TB+ datasets, the speed is limited by your hardware (HDD vs. SSD). If the progress bar appears "stuck," the engine is waiting for your disk to catch up. Do not close the terminal.
+##**📉 3. PERFORMANCE & HANGING**
+##**⚡ ACTION: HARDWARE SPEED LIMITATIONS**
+When processing 1TB+ datasets, speed is limited by your hardware (HDD vs. SSD). If the progress bar appears "stuck," the engine is waiting for your disk to catch up. DO NOT close the terminal or you may corrupt the file.
 
-✅ THE FINAL SECURITY CHECKLIST
-1. 🛡️ CONFIGURE YOUR .GITIGNORE
-To prevent accidental leakage of your private keys to the public web, ensure your .gitignore file contains these exact lines:
+##**✅ THE FINAL SECURITY CHECKLIST**
+##**🛡️ 1. CONFIGURE YOUR .GITIGNORE**
+```To prevent accidental leakage of your private keys to the public web, ensure your .gitignore file contains these exact lines:
 
 Plaintext
 .env
 mfa_setup.png
 __pycache__/
 *.pyc
-2. 📦 VERIFY YOUR REQUIREMENTS.TXT
-Ensure your environment has every cryptographic library needed to run the engine:
-
+```
+##**📦 2. VERIFY YOUR REQUIREMENTS.TXT**
+Ensure your environment has every cryptographic library needed to run the Aegis engine:
+```
 Plaintext
 pycryptodome
 argon2-cffi
@@ -96,15 +97,11 @@ pyotp
 qrcode
 python-dotenv
 pillow
-3. 📱 CRITICAL: SCAN & DESTROY
-Step 1: Scan the mfa_setup.png into your mobile app.
-
-Step 2: ## DELETE THE PNG IMMEDIATELY.
-
-Step 3: Never store a digital copy of your QR code on any device connected to the internet.
-
-
-
+```
+##**📱 3. CRITICAL: SCAN & DESTROY**
+STEP 1: Scan the mfa_setup.png into your mobile app.
+STEP 2: DELETE THE PNG FILE FROM YOUR DISK IMMEDIATELY.
+STEP 3: Never store a digital copy of your QR code on any device connected to the internet.
 
 ---
 
