@@ -31,19 +31,17 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 
 ---
 
-##🌐 DOWNLOADS & ENVIRONMENT
+🌐 DOWNLOADS & ENVIRONMENT
 Before you begin, ensure your system is equipped with the following core technologies:
-
 🐍 Python 3.12+
-The engine is built on the latest Python standards for memory management.
-Download Python
+The engine is built on the latest Python standards for high-performance memory management.
 
 🐙 Git SCM
-Required for version control and cloning the repository.
-Download Git
+Required for secure version control and cloning the repository.
 
 📱 TOTP Authenticator
 You will need a mobile app to generate the physical 2FA keys.
+
 Google Authenticator | Aegis MFA
 
 
