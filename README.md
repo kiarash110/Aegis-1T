@@ -99,9 +99,9 @@ python-dotenv
 pillow
 ```
 ## **📱 3. CRITICAL: SCAN & DESTROY**
-* **STEP 1: Scan the mfa_setup.png into your mobile app.*
+## **STEP 1: Scan the mfa_setup.png into your mobile app.*
 ## **STEP 2: DELETE THE PNG FILE FROM YOUR DISK IMMEDIATELY.**
-* **STEP 3: Never store a digital copy of your QR code on any device connected to the internet.*
+## **STEP 3: Never store a digital copy of your QR code on any device connected to the internet.*
 
 ---
 
