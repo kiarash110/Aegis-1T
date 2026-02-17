@@ -26,3 +26,6 @@ Before you begin, ensure you have the following installed:
    ```bash
    git clone https://github.com/kiarash110/Aegis-1T.git
    cd Aegis-1T
+2. **Install the security dependencies**
+   ```bash
+   pip install -r requirements.txt
