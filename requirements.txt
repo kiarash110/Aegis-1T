@@ -1,1 +1,5 @@
-
+pycryptodome
+argon2-cffi
+pyotp
+qrcode
+python-dotenv
