@@ -61,3 +61,14 @@ cd Aegis-1T
 
 # Install security dependencies
 pip install -r requirements.txt
+
+```
+---
+
+## **⚖️ LEGAL DISCLAIMER**
+
+**Aegis-1T is an independent, open-source educational project. It is NOT affiliated with, endorsed by, or associated with the "Aegis Authenticator" app, Aegis Cyber Security, or any other existing "Aegis" trademarks. The name is used in its classical sense, referring to the mythological shield of protection.**
+
+**⚠️ WARNING: Use this software at your own risk. The author is not responsible for any data loss, forgotten passwords, or lost MFA secrets. Always keep a physical backup of your master key.**
+
+ 
