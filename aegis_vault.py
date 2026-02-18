@@ -1,154 +1,159 @@
 import os
 import pyotp
-import maskpass  # Anti-Keylogger Protection
-from pathlib import Path # Pro Path Handling (No more quote issues)
-from dotenv import load_dotenv
+import json
+import base64
+import maskpass
+import time
+from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from argon2.low_level import hash_secret_raw, Type
 
-# 🔑 STEP 1: LOAD SECRETS
-load_dotenv()
-
-BUFFER_SIZE = 1024 * 1024  # 1MB Chunks for large files
-SALT_SIZE = 16 
+# --- CONFIGURATION ---
+MEM_COST = 204800  
+TIME_COST = 4      
+PARALLELISM = 4    
+BUFFER_SIZE = 5 * 1024 * 1024  # 🚀 5MB Buffer for speed
+SALT_SIZE = 16
 
 def clean_path_input(prompt):
-    """
-    🛠️ PRO PATH SANITIZER
-    Handles Drag & Drop or 'Copy as Path' automatically.
-    Removes "" and '' and extra spaces.
-    """
     raw_path = input(prompt).strip().strip('"').strip("'")
     return Path(raw_path)
 
-def get_mfa_secret():
-    secret = os.getenv("MFA_SECRET")
-    if not secret:
-        print("❌ Error: MFA_SECRET not found in .env!")
+def display_progress(current, total, start_time):
+    """🛠️ Custom Progress Bar with Speed & ETA"""
+    elapsed = time.time() - start_time
+    percent = (current / total) * 100
+    # Calculate Speed (MB/s)
+    speed = (current / (1024 * 1024)) / elapsed if elapsed > 0 else 0
+    # Calculate ETA (seconds)
+    remaining = (total - current) / (current / elapsed) if current > 0 else 0
+    
+    # Format the bar
+    bar_length = 30
+    filled = int(bar_length * current // total)
+    bar = '█' * filled + '-' * (bar_length - filled)
+    
+    print(f"\r|{bar}| {percent:.1f}% - {speed:.2f} MB/s - ETA: {int(remaining)}s ", end='')
+
+def unlock_vault(password):
+    if not os.path.exists(".env.vault"):
+        print("❌ Error: .env.vault missing.")
         return None
-    return secret
+    try:
+        with open(".env.vault", "r") as f:
+            vault = json.load(f)
+        salt = base64.b64decode(vault['salt'])
+        vault_key = hash_secret_raw(
+            secret=password.encode(), salt=salt,
+            time_cost=TIME_COST, memory_cost=MEM_COST,
+            parallelism=PARALLELISM, hash_len=32, type=Type.ID
+        )
+        cipher = AES.new(vault_key, AES.MODE_GCM, nonce=base64.b64decode(vault['nonce']))
+        decrypted_data = cipher.decrypt_and_verify(
+            base64.b64decode(vault['ciphertext']), base64.b64decode(vault['tag'])
+        )
+        secrets = {}
+        for line in decrypted_data.decode().split('\n'):
+            if '=' in line:
+                k, v = line.split('=', 1)
+                secrets[k] = v
+        return secrets
+    except:
+        return None
 
-def verify_user():
-    """ 🛡️ MFA CHECK """
-    secret = get_mfa_secret()
-    if not secret: return False
-    
-    totp = pyotp.TOTP(secret)
-    print(f"\n[!] MFA Required for Access")
-    user_code = input("🛡️ Enter 6-digit code from phone: ")
-    
-    if totp.verify(user_code):
-        print("✅ Access Granted.")
-        return True
-    else:
-        print("❌ Access Denied.")
-        return False
-
-def get_derived_key(password, salt):
-    """ 🧠 ARGON2id KEY DERIVATION """
+def get_file_key(password, salt):
     return hash_secret_raw(
-        secret=password.encode(),
-        salt=salt,
-        time_cost=3,
-        memory_cost=65536, # Uses 64MB of RAM
-        parallelism=4,
-        hash_len=32,
-        type=Type.ID
+        secret=password.encode(), salt=salt,
+        time_cost=TIME_COST, memory_cost=MEM_COST,
+        parallelism=PARALLELISM, hash_len=32, type=Type.ID
     )
 
-def encrypt_file(file_path_obj, password):
-    """ 🔒 AES-256-GCM ENCRYPTION """
-    if not file_path_obj.exists():
-        print(f"❌ Error: Path '{file_path_obj}' not found.")
-        return
+def encrypt_file(file_path, password, mfa_secret):
+    totp = pyotp.TOTP(mfa_secret)
+    user_code = input("\n🛡️ Enter MFA code: ")
+    if not totp.verify(user_code): return print("❌ Access Denied")
 
-    if not verify_user(): return
-    
-    print(f"🔒 Encrypting: {file_path_obj.name}...")
+    file_size = file_path.stat().st_size
     salt = get_random_bytes(SALT_SIZE)
-    key = get_derived_key(password, salt)
+    key = get_file_key(password, salt)
     cipher = AES.new(key, AES.MODE_GCM)
+    output_file = file_path.with_suffix(file_path.suffix + ".aegis")
     
-    output_file = file_path_obj.with_suffix(file_path_obj.suffix + ".aegis")
+    start_time = time.time()
+    processed = 0
     
-    with open(file_path_obj, 'rb') as f_in, open(output_file, 'wb') as f_out:
+    with open(file_path, 'rb') as f_in, open(output_file, 'wb') as f_out:
         f_out.write(salt)
         f_out.write(cipher.nonce)
-        
         while True:
             chunk = f_in.read(BUFFER_SIZE)
             if not chunk: break
             f_out.write(cipher.encrypt(chunk))
-            
+            processed += len(chunk)
+            display_progress(processed, file_size, start_time)
+
         f_out.write(cipher.digest())
-
-    print(f"✅ Success! Created: {output_file.name}")
     
-    # 🧹 SECURE SHREDDER
-    confirm = input(f"🛡️ SHRED ORIGINAL '{file_path_obj.name}'? (y/n): ").lower()
-    if confirm == 'y':
-        size = file_path_obj.stat().st_size
-        with open(file_path_obj, "ba+", buffering=0) as f:
-            f.write(b"\x00" * size)
-        os.remove(file_path_obj)
-        print(f"🗑️ Shredded successfully.")
+    print(f"\n✅ Done! File locked as {output_file.name}")
+    if input(f"\n🛡️ Shred original? (y/n): ").lower() == 'y':
+        with open(file_path, "wb") as f: f.write(os.urandom(file_size))
+        os.remove(file_path)
+        print("🗑️ Shredded.")
 
-def decrypt_file(file_path_obj, password):
-    """ 🔓 DECRYPTION & INTEGRITY CHECK """
-    if not file_path_obj.exists(): return
-    if not verify_user(): return
-    
-    with open(file_path_obj, 'rb') as f_in:
+def decrypt_file(file_path, password, mfa_secret):
+    totp = pyotp.TOTP(mfa_secret)
+    user_code = input("\n🛡️ Enter MFA code: ")
+    if not totp.verify(user_code): return print("❌ Access Denied")
+
+    with open(file_path, 'rb') as f_in:
         salt = f_in.read(SALT_SIZE)
         nonce = f_in.read(16)
-        
-        file_size = file_path_obj.stat().st_size
-        # Metadata check: salt(16) + nonce(16) + tag(16) = 48 bytes
+        file_size = file_path.stat().st_size
         encrypted_data_size = file_size - SALT_SIZE - 16 - 16
         
-        key = get_derived_key(password, salt)
+        key = get_file_key(password, salt)
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+        output_file = Path(str(file_path).replace(".aegis", ""))
         
-        # Strip .aegis to get original name
-        output_file = Path(str(file_path_obj).replace(".aegis", ""))
+        start_time = time.time()
+        processed = 0
         
-        # Overwrite protection
-        base_name = output_file
-        counter = 1
-        while output_file.exists():
-            output_file = base_name.with_name(f"{base_name.stem}({counter}){base_name.suffix}")
-            counter += 1
-
         with open(output_file, 'wb') as f_out:
-            for _ in range(0, encrypted_data_size, BUFFER_SIZE):
-                chunk = f_in.read(min(BUFFER_SIZE, encrypted_data_size))
+            while processed < encrypted_data_size:
+                to_read = min(BUFFER_SIZE, encrypted_data_size - processed)
+                chunk = f_in.read(to_read)
+                if not chunk: break
                 f_out.write(cipher.decrypt(chunk))
+                processed += len(chunk)
+                display_progress(processed, encrypted_data_size, start_time)
             
             tag = f_in.read(16)
             try:
                 cipher.verify(tag)
-                print(f"🔓 Success! Restored to: {output_file.name}")
-            except ValueError:
-                print("❌ ERROR: Integrity failed (Wrong password or file tampered).")
+                print(f"\n🔓 Success! File restored.")
+            except:
+                print("\n❌ Integrity check failed!")
                 f_out.close()
                 os.remove(output_file)
 
-# --- 🚀 INTERFACE ---
 if __name__ == "__main__":
-    print("\n" + "="*40)
-    print("🛡️  AEGIS-1T CRYPTOGRAPHIC VAULT")
-    print("="*40)
-    
-    action = input("Type 'E' to Encrypt or 'D' to Decrypt: ").upper()
-    
-    # Drag and Drop the file here
-    target_path = clean_path_input("📍 Drag & Drop (or paste path): ")
-    
-    # Password entry (Hidden from keyloggers)
-    secret_pass = maskpass.advpass(prompt="🔑 Enter Master Password: ", mask="*")
-    
-    if action == 'E':
-        encrypt_file(target_path, secret_pass)
-    elif action == 'D':
-        decrypt_file(target_path, secret_pass)
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("🛡️ AEGIS-1T (5MB BUFFER MODE)")
+        action = input("\n[E]ncrypt, [D]ecrypt, [Q]uit: ").upper()
+        if action == 'Q': break
+        if action not in ['E', 'D']: continue
+
+        target = clean_path_input("📍 File Path: ")
+        if not target.exists(): continue
+
+        password = maskpass.advpass(prompt="🔑 Password: ", mask="*")
+        vault = unlock_vault(password)
+        
+        if vault:
+            mfa_secret = vault.get("MFA_SECRET")
+            if action == 'E': encrypt_file(target, password, mfa_secret)
+            else: decrypt_file(target, password, mfa_secret)
+        
+        if input("\n🔄 Again? (y/n): ").lower() != 'y': break
