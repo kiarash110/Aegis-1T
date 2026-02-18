@@ -4,3 +4,4 @@ pyotp
 qrcode
 python-dotenv
 pillow
+maskpass
