@@ -4,6 +4,7 @@ import os
 import json
 import base64
 import time
+import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from argon2 import PasswordHasher
@@ -49,7 +50,6 @@ def setup_aegis_vault():
 
     print(f"\n[🎬] QR CODE GENERATED: {qr_filename}")
     
-    # Open image automatically
     try:
         if os.name == 'nt': os.startfile(qr_filename)
         else: os.system(f'open {qr_filename}')
@@ -69,13 +69,13 @@ def setup_aegis_vault():
         try:
             file_size = os.path.getsize(qr_filename)
             with open(qr_filename, "wb") as f:
-                f.write(os.urandom(file_size)) # Overwrite with random bytes
+                f.write(os.urandom(file_size)) 
                 f.flush()
                 os.fsync(f.fileno())
             os.remove(qr_filename)
             print("[🗑️] SECURITY: QR code securely wiped and deleted.")
         except Exception as e:
-            print(f"⚠️  Warning: Could not delete QR code automatically. Please delete {qr_filename} manually! Error: {e}")
+            print(f"⚠️  Warning: Delete '{qr_filename}' manually! Error: {e}")
 
     # 3. PHASE 3: VAULT SEALING
     print("\n[🔒] PHASE 3: SEALING THE VAULT...")
@@ -103,4 +103,25 @@ def setup_aegis_vault():
         "ciphertext": base64.b64encode(ciphertext).decode()
     }
 
-    with open
+    # FIX: Corrected the 'with open' syntax error here
+    with open(".env.vault", "w") as f:
+        json.dump(vault_data, f)
+
+    print("\n" + "="*55)
+    print("✅ SYSTEM INITIALIZED SUCCESSFULLY!")
+    print("📍 VAULT CREATED: .env.vault")
+    print("⚠️  This setup script will now self-destruct.")
+    print("="*55 + "\n")
+    
+    # 4. SELF DESTRUCT LOGIC
+    # This schedules the deletion of this file after the script exits.
+    if os.name == 'nt':
+        # Windows command to wait 1 second then delete this script
+        cmd = f'start /b "" cmd /c timeout /t 1 > nul & del "{sys.argv[0]}"'
+        os.system(cmd)
+    else:
+        # Linux/Mac command
+        os.system(f'rm "{sys.argv[0]}" &')
+
+if __name__ == "__main__":
+    setup_aegis_vault()
