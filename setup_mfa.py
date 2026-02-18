@@ -4,7 +4,6 @@ import os
 import json
 import base64
 import time
-import threading
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from argon2 import PasswordHasher
@@ -12,30 +11,17 @@ from argon2.low_level import hash_secret_raw, Type
 
 # --- HIGH-SECURITY CONFIGURATION ---
 MEM_COST = 204800  # 200MB 
-TIME_COST = 4      # Number of passes
-PARALLELISM = 4    # CPU Threads
+TIME_COST = 4      
+PARALLELISM = 4    
 # -----------------------------------
-
-def delete_qr_after_delay(file_path, delay=120):
-    """Securely deletes the QR image after 2 minutes."""
-    time.sleep(delay)
-    if os.path.exists(file_path):
-        try:
-            os.remove(file_path)
-            print(f"\n[🗑️] SECURITY: QR code image '{file_path}' deleted.")
-        except:
-            pass
 
 def setup_aegis_vault():
     print("\n" + "="*55)
     print("🛡️  AEGIS-1T: SYSTEM INITIALIZATION (200MB RAM MODE)")
     print("="*55)
     
-    # 1. WARNING & PASSWORD
+    # 1. PHASE 1: MASTER PASSWORD
     print("\n[!] PHASE 1: MASTER PASSWORD CREATION")
-    print("⚠️  CRITICAL: If you lose this password, your")
-    print("   vaulted data is PERMANENTLY UNRECOVERABLE.\n")
-
     ph = PasswordHasher(memory_cost=MEM_COST, time_cost=TIME_COST, parallelism=PARALLELISM)
     
     while True:
@@ -44,7 +30,7 @@ def setup_aegis_vault():
         
         if mp == confirm:
             if len(mp) < 12:
-                print("❌ ERROR: For high-security, use at least 12 characters.")
+                print("❌ ERROR: Password too short! Use 12+ characters.")
                 continue
             break
         print("❌ ERROR: Passwords do not match!")
@@ -52,7 +38,7 @@ def setup_aegis_vault():
     print("\n[⏳] Hashing password... (Using 200MB RAM)")
     mp_hash = ph.hash(mp)
 
-    # 2. MFA SETUP
+    # 2. PHASE 2: MFA SETUP
     print("\n[!] PHASE 2: MULTI-FACTOR AUTHENTICATION (MFA)")
     mfa_secret = pyotp.random_base32()
     totp = pyotp.TOTP(mfa_secret)
@@ -62,15 +48,36 @@ def setup_aegis_vault():
     qrcode.make(uri).save(qr_filename)
 
     print(f"\n[🎬] QR CODE GENERATED: {qr_filename}")
-    print("⚠️  WARNING: You have 2 MINUTES to scan this.")
     
-    threading.Thread(target=delete_qr_after_delay, args=(qr_filename,), daemon=True).start()
-    
-    # Open image (Windows/Mac/Linux)
-    if os.name == 'nt': os.startfile(qr_filename)
-    else: os.system(f'open {qr_filename}')
+    # Open image automatically
+    try:
+        if os.name == 'nt': os.startfile(qr_filename)
+        else: os.system(f'open {qr_filename}')
+    except:
+        print("⚠️  Could not auto-open image. Please open 'mfa_setup_qr.png' manually.")
 
-    # 3. VAULT SEALING
+    print("\n" + "-"*40)
+    print("📲 1. Open Google Authenticator / Authy")
+    print("📲 2. Scan the QR code")
+    print("📲 3. CLOSE THE IMAGE WINDOW on your computer")
+    print("-"*40)
+    
+    input("\n👉 Once scanned and CLOSED, press ENTER to shred the QR code...")
+
+    # --- SECURE SHREDDING OF QR CODE ---
+    if os.path.exists(qr_filename):
+        try:
+            file_size = os.path.getsize(qr_filename)
+            with open(qr_filename, "wb") as f:
+                f.write(os.urandom(file_size)) # Overwrite with random bytes
+                f.flush()
+                os.fsync(f.fileno())
+            os.remove(qr_filename)
+            print("[🗑️] SECURITY: QR code securely wiped and deleted.")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not delete QR code automatically. Please delete {qr_filename} manually! Error: {e}")
+
+    # 3. PHASE 3: VAULT SEALING
     print("\n[🔒] PHASE 3: SEALING THE VAULT...")
     
     secret_payload = f"MASTER_HASH={mp_hash}\nMFA_SECRET={mfa_secret}"
@@ -96,15 +103,4 @@ def setup_aegis_vault():
         "ciphertext": base64.b64encode(ciphertext).decode()
     }
 
-    with open(".env.vault", "w") as f:
-        json.dump(vault_data, f)
-
-    print("\n" + "="*55)
-    print("✅ SETUP SUCCESSFUL!")
-    print(f"📍 VAULT CREATED: .env.vault ({MEM_COST//1024}MB Hardness)")
-    print("⏱️  FINISH SCANNING THE QR CODE BEFORE IT DELETES.")
-    print("="*55 + "\n")
-    time.sleep(5)
-
-if __name__ == "__main__":
-    setup_aegis_vault()
+    with open
