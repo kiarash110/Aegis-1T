@@ -219,3 +219,22 @@ large_test_file.*
 # Ignore the actual master key if saved as a text file
 master_key.txt
 secret.key
+# ==========================================
+# Aegis-1T Custom Security Rules
+# ==========================================
+# This is the encrypted "Black Box"
+.env.vault
+
+# Ignore the raw secret file if you haven't locked it yet
+.env
+
+# Ignore any emergency recovery keys or paper backups
+recovery_key.txt
+backup_codes.json
+
+# Ignore binary fragments or safe files
+*.safe
+*.bin
+
+# Ignore any local test data folders
+/test_data/
