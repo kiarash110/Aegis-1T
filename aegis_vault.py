@@ -13,7 +13,7 @@ from argon2.low_level import hash_secret_raw, Type
 MEM_COST = 204800  
 TIME_COST = 4      
 PARALLELISM = 4    
-BUFFER_SIZE = 5 * 1024 * 1024  # 🚀 5MB Buffer for speed
+BUFFER_SIZE = 5 * 1024 * 1024  # 🚀 5MB Buffer
 SALT_SIZE = 16
 
 def clean_path_input(prompt):
@@ -21,19 +21,13 @@ def clean_path_input(prompt):
     return Path(raw_path)
 
 def display_progress(current, total, start_time):
-    """🛠️ Custom Progress Bar with Speed & ETA"""
     elapsed = time.time() - start_time
     percent = (current / total) * 100
-    # Calculate Speed (MB/s)
     speed = (current / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-    # Calculate ETA (seconds)
     remaining = (total - current) / (current / elapsed) if current > 0 else 0
-    
-    # Format the bar
     bar_length = 30
     filled = int(bar_length * current // total)
     bar = '█' * filled + '-' * (bar_length - filled)
-    
     print(f"\r|{bar}| {percent:.1f}% - {speed:.2f} MB/s - ETA: {int(remaining)}s ", end='')
 
 def unlock_vault(password):
@@ -92,14 +86,29 @@ def encrypt_file(file_path, password, mfa_secret):
             f_out.write(cipher.encrypt(chunk))
             processed += len(chunk)
             display_progress(processed, file_size, start_time)
-
         f_out.write(cipher.digest())
     
     print(f"\n✅ Done! File locked as {output_file.name}")
-    if input(f"\n🛡️ Shred original? (y/n): ").lower() == 'y':
-        with open(file_path, "wb") as f: f.write(os.urandom(file_size))
-        os.remove(file_path)
-        print("🗑️ Shredded.")
+    
+    # --- HARDENED SHREDDER WITH ERROR HANDLING ---
+    confirm = input(f"\n🛡️ Shred original '{file_path.name}'? (y/n): ").lower()
+    if confirm == 'y':
+        try:
+            size = file_path.stat().st_size
+            with open(file_path, "wb") as f: 
+                f.write(os.urandom(size)) 
+                f.flush()
+                os.fsync(f.fileno()) 
+            
+            time.sleep(0.5) 
+            os.remove(file_path)
+            print("🗑️  Original file shredded and deleted successfully.")
+        except Exception as e:
+            print("\n" + "!"*50)
+            print(f"⚠️  SHREDDING FAILED!")
+            print(f"👉 Please CLOSE any apps (Photo Viewer, VLC, etc.) using this file.")
+            print(f"👉 Error details: {e}")
+            print("!"*50)
 
 def decrypt_file(file_path, password, mfa_secret):
     totp = pyotp.TOTP(mfa_secret)
@@ -155,5 +164,8 @@ if __name__ == "__main__":
             mfa_secret = vault.get("MFA_SECRET")
             if action == 'E': encrypt_file(target, password, mfa_secret)
             else: decrypt_file(target, password, mfa_secret)
+        else:
+            print("❌ Vault Unlocking Failed.")
+            time.sleep(2)
         
         if input("\n🔄 Again? (y/n): ").lower() != 'y': break
