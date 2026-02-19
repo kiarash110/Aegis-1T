@@ -102,6 +102,7 @@ qrcode
 python-dotenv
 pillow
 maskpass
+psutil
 ```
 ## **📱 3. CRITICAL: SCAN & DESTROY**
 ## *STEP 1: Scan the mfa_setup.png into your mobile app.*
