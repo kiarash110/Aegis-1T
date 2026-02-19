@@ -46,7 +46,7 @@ def setup_aegis_vault():
     print("\n[!] PHASE 2: MULTI-FACTOR AUTHENTICATION (MFA)")
     mfa_secret = pyotp.random_base32()
     totp = pyotp.TOTP(mfa_secret)
-    uri = totp.provisioning_uri(name="Aegis-User", issuer_name="Aegis-1T")
+    uri = totp.provisioning_uri(name="v1.0.2", issuer_name="Aegis-1T")
     
     qr_filename = "mfa_setup_qr.png"
     qrcode.make(uri).save(qr_filename)
