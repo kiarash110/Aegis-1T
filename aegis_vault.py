@@ -1,188 +1,172 @@
-import os
-import pyotp
-import json
-import base64
-import maskpass
-import time
+import os, pyotp, json, base64, maskpass, time
 from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from argon2.low_level import hash_secret_raw, Type
 
-# --- CONFIGURATION ---
-MEM_COST = 204800  
-TIME_COST = 4      
-PARALLELISM = 4    
-BUFFER_SIZE = 5 * 1024 * 1024  # 🚀 5MB Buffer
-SALT_SIZE = 16
+# --- CORE CRYPTO CONFIGURATION ---
+MEM_COST, TIME_COST, PARALLELISM, SALT_SIZE = 204800, 4, 4, 16
 
-def clean_path_input(prompt):
-    # Updated to clearly instruct on drag-and-drop
-    print("\n" + "-"*55)
-    print("📍 STEP: PROVIDE THE FILE")
-    print("👉 You can type the path OR simply DRAG AND DROP the file here.")
-    print("-" * 55)
-    raw_path = input(prompt).strip().strip('"').strip("'")
-    # Some terminals add an extra space at the end of a drag-drop
-    return Path(raw_path.strip())
+def select_buffer_mode(task_name):
+    """Change #5 & #6: Performance Profile Selector with RAM warnings"""
+    print(f"\n🚀 SELECT SPEED FOR {task_name.upper()}:")
+    print(" [1] Standard (16MB Buffer)  - RAM Usage: ~100MB")
+    print(" [2] Extreme  (512MB Buffer) - RAM Usage: ~1.2GB")
+    print(" [3] NITRO    (1.5GB Buffer) - RAM Usage: ~3.5GB+")
+    
+    choice = input(f"👉 Select {task_name} Mode (1/2/3): ")
+    if choice == '3':
+        print("🔥 NITRO ENABLED: Ensure you have 16GB+ System RAM available.")
+        return 1536 * 1024 * 1024
+    if choice == '2':
+        return 512 * 1024 * 1024
+    return 16 * 1024 * 1024
 
 def display_progress(current, total, start_time):
+    """Change #2: Progress bar with MB/s and ETA"""
     elapsed = time.time() - start_time
     percent = (current / total) * 100
     speed = (current / (1024 * 1024)) / elapsed if elapsed > 0 else 0
     remaining = (total - current) / (current / elapsed) if current > 0 else 0
-    bar_length = 30
-    filled = int(bar_length * current // total)
-    bar = '█' * filled + '-' * (bar_length - filled)
+    bar = '█' * int(30 * current // total) + '-' * (30 - int(30 * current // total))
     print(f"\r|{bar}| {percent:.1f}% - {speed:.2f} MB/s - ETA: {int(remaining)}s ", end='')
 
-def unlock_vault(master_password):
-    if not os.path.exists(".env.vault"):
-        print("❌ Error: .env.vault missing.")
-        return None
-    try:
-        with open(".env.vault", "r") as f:
-            vault = json.load(f)
-        salt = base64.b64decode(vault['salt'])
-        vault_key = hash_secret_raw(
-            secret=master_password.encode(), salt=salt,
-            time_cost=TIME_COST, memory_cost=MEM_COST,
-            parallelism=PARALLELISM, hash_len=32, type=Type.ID
-        )
-        cipher = AES.new(vault_key, AES.MODE_GCM, nonce=base64.b64decode(vault['nonce']))
-        decrypted_data = cipher.decrypt_and_verify(
-            base64.b64decode(vault['ciphertext']), base64.b64decode(vault['tag'])
-        )
-        secrets = {}
-        for line in decrypted_data.decode().split('\n'):
-            if '=' in line:
-                k, v = line.split('=', 1)
-                secrets[k] = v
-        return secrets
-    except:
-        return None
-
-def get_file_key(password, salt):
-    return hash_secret_raw(
-        secret=password.encode(), salt=salt,
-        time_cost=TIME_COST, memory_cost=MEM_COST,
-        parallelism=PARALLELISM, hash_len=32, type=Type.ID
-    )
-
-def encrypt_file(file_path, file_password, mfa_secret):
-    totp = pyotp.TOTP(mfa_secret)
-    user_code = input("\n🛡️ Enter MFA code: ")
-    if not totp.verify(user_code): return print("❌ Access Denied")
+def secure_shred(file_path):
+    """Change #1 & #8: Triple-confirm shredder with independent speed selection"""
+    print(f"\n\n🧹 SHREDDER INITIALIZED")
+    shred_buffer = select_buffer_mode("Shredding")
+    
+    print(f"\n⚠️  CRITICAL: Shredding will permanently destroy: {file_path.name}")
+    if input("👉 Confirm Shredding? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
+    if input("👉 ARE YOU SURE? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
+    if input("👉 Final warning: Type 'DELETE' to proceed: ") != 'DELETE': return print("🚫 Canceled.")
 
     file_size = file_path.stat().st_size
-    salt = get_random_bytes(SALT_SIZE)
-    key = get_file_key(file_password, salt)
-    cipher = AES.new(key, AES.MODE_GCM)
-    output_file = file_path.with_suffix(file_path.suffix + ".aegis")
+    start_time, processed = time.time(), 0
+    print(f"\n🧹 Wiping original file with random bytes...")
     
-    start_time = time.time()
-    processed = 0
-    
-    with open(file_path, 'rb') as f_in, open(output_file, 'wb') as f_out:
-        f_out.write(salt)
-        f_out.write(cipher.nonce)
-        while True:
-            chunk = f_in.read(BUFFER_SIZE)
-            if not chunk: break
-            f_out.write(cipher.encrypt(chunk))
-            processed += len(chunk)
-            display_progress(processed, file_size, start_time)
-        f_out.write(cipher.digest())
-    
-    print(f"\n✅ Done! File locked as {output_file.name}")
-    
-    confirm = input(f"\n🛡️ Shred original '{file_path.name}'? (y/n): ").lower()
-    if confirm == 'y':
-        try:
-            size = file_path.stat().st_size
-            with open(file_path, "wb") as f: 
-                f.write(os.urandom(size)) 
+    try:
+        with open(file_path, "wb") as f:
+            while processed < file_size:
+                chunk = min(shred_buffer, file_size - processed)
+                f.write(os.urandom(chunk))
                 f.flush()
-                os.fsync(f.fileno()) 
-            time.sleep(0.5) 
-            os.remove(file_path)
-            print("🗑️ Original file shredded successfully.")
-        except Exception as e:
-            print(f"\n⚠️ SHREDDING FAILED: {e}")
+                os.fsync(f.fileno()) # Forces physical write to the SSD
+                processed += chunk
+                display_progress(processed, file_size, start_time)
+        os.remove(file_path)
+        total_time = time.time() - start_time
+        print(f"\n✨ SHRED COMPLETE: {total_time:.2f}s | Avg: {(file_size/(1024*1024))/total_time:.2f} MB/s")
+    except Exception as e:
+        print(f"\n❌ SHREDDING FAILED: {e}")
 
-def decrypt_file(file_path, file_password, mfa_secret):
-    totp = pyotp.TOTP(mfa_secret)
-    user_code = input("\n🛡️ Enter MFA code: ")
-    if not totp.verify(user_code): return print("❌ Access Denied")
-
-    with open(file_path, 'rb') as f_in:
-        salt = f_in.read(SALT_SIZE)
-        nonce = f_in.read(16)
-        file_size = file_path.stat().st_size
-        encrypted_data_size = file_size - SALT_SIZE - 16 - 16
-        
-        key = get_file_key(file_password, salt)
-        cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
-        output_file = Path(str(file_path).replace(".aegis", ""))
-        
-        start_time = time.time()
-        processed = 0
-        
-        with open(output_file, 'wb') as f_out:
-            while processed < encrypted_data_size:
-                to_read = min(BUFFER_SIZE, encrypted_data_size - processed)
-                chunk = f_in.read(to_read)
-                if not chunk: break
-                f_out.write(cipher.decrypt(chunk))
-                processed += len(chunk)
-                display_progress(processed, encrypted_data_size, start_time)
-            
-            tag = f_in.read(16)
-            try:
-                cipher.verify(tag)
-                print(f"\n🔓 Success! File restored.")
-            except:
-                print("\n❌ Integrity check failed! Wrong file password.")
-                f_out.close()
-                os.remove(output_file)
+def unlock_vault(master_password):
+    if not os.path.exists(".env.vault"): return None
+    try:
+        with open(".env.vault", "r") as f: vault = json.load(f)
+        salt = base64.b64decode(vault['salt'])
+        vault_key = hash_secret_raw(master_password.encode(), salt=salt, time_cost=TIME_COST, 
+                                     memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
+        cipher = AES.new(vault_key, AES.MODE_GCM, nonce=base64.b64decode(vault['nonce']))
+        decrypted = cipher.decrypt_and_verify(base64.b64decode(vault['ciphertext']), base64.b64decode(vault['tag']))
+        return {k: v for line in decrypted.decode().split('\n') if '=' in line for k, v in [line.split('=', 1)]}
+    except: return None
 
 if __name__ == "__main__":
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("="*55)
-        print("🛡️ AEGIS-1T (5MB BUFFER MODE)")
-        print("="*55)
+        print("="*60)
+        print("🛡️  AEGIS-1T | VERSION 1.0.2 | PERFORMANCE SUITE")
+        print("="*60)
         
         action = input("\n[E]ncrypt, [D]ecrypt, [Q]uit: ").upper()
-        if action == 'Q': 
-            print("👋 Closing system.")
-            break
+        if action == 'Q': break
         if action not in ['E', 'D']: continue
 
-        target = clean_path_input("👉 Drag File Here: ")
-        if not target.exists(): 
-            print(f"❌ File not found at: {target}")
-            time.sleep(3)
-            continue
+        target = Path(input("\n👉 Drag File Here: ").strip().strip('"').strip("'"))
+        if not target.exists():
+            print("❌ File not found."); time.sleep(2); continue
 
-        master_pass = maskpass.advpass(prompt="🔑 System Master Password: ", mask="*")
+        # Change #9: Anti-Double Encryption Guard
+        if action == 'E' and target.suffix == '.aegis':
+            print("\n🛑 ERROR: This file is already encrypted (.aegis).")
+            print("Double encryption causes structural corruption and is blocked.")
+            time.sleep(4); continue
+
+        # Change #10: Master Password Guard (Min 6 Characters)
+        while True:
+            print("\n" + "─"*55)
+            print("🔒 SECURITY: Passwords show as '*'. Hold [L-CTRL] to peek.")
+            print("─" * 55)
+            master_pass = maskpass.advpass(prompt="🔑 System Master Password: ", mask="*")
+            if len(master_pass) >= 6: break
+            print("⚠️  Master Password must be at least 6 characters.")
+
         vault = unlock_vault(master_pass)
+        if not vault:
+            print("❌ Access Denied."); time.sleep(2); continue
+
+        mfa_secret = vault.get("MFA_SECRET")
+        file_pass = maskpass.advpass(prompt="🛡️  File-Specific Password: ", mask="*")
         
-        if vault:
-            mfa_secret = vault.get("MFA_SECRET")
-            file_pass = maskpass.advpass(prompt="🛡️ Set/Enter File Password: ", mask="*")
-            
-            if action == 'E': 
-                encrypt_file(target, file_pass, mfa_secret)
-            else: 
-                decrypt_file(target, file_pass, mfa_secret)
-        else:
-            print("❌ Master Password Incorrect. Access Denied.")
-            time.sleep(2)
-            continue
+        # Performance Mode Selection
+        buffer_size = select_buffer_mode("Processing")
         
-        choice = input("\n🔄 Task complete. Do you want to process another file? (y/n): ").lower()
-        if choice != 'y':
-            print("🔒 System locked. Goodbye.")
-            time.sleep(1)
+        # MFA Verification
+        if not pyotp.TOTP(mfa_secret).verify(input("\n🛡️  Enter MFA code: ")):
+            print("❌ MFA Invalid."); time.sleep(2); continue
+
+        start_time, processed = time.time(), 0
+        file_size = target.stat().st_size
+        
+        try:
+            if action == 'E':
+                salt = get_random_bytes(SALT_SIZE)
+                key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
+                cipher = AES.new(key, AES.MODE_GCM)
+                output_path = target.with_suffix(target.suffix + ".aegis")
+                
+                with open(target, 'rb') as f_in, open(output_path, 'wb') as f_out:
+                    f_out.write(salt)
+                    f_out.write(cipher.nonce)
+                    while (chunk := f_in.read(buffer_size)):
+                        f_out.write(cipher.encrypt(chunk))
+                        processed += len(chunk)
+                        display_progress(processed, file_size, start_time)
+                    f_out.write(cipher.digest())
+                
+                # Change #7: Completion Report
+                duration = time.time() - start_time
+                print(f"\n\n✅ ENCRYPTION COMPLETE")
+                print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(file_size/(1024*1024))/duration:.2f} MB/s")
+                print(f"📦 Final Size: {output_path.stat().st_size / (1024**3):.4f} GB")
+                secure_shred(target)
+
+            elif action == 'D':
+                with open(target, 'rb') as f_in:
+                    salt, nonce = f_in.read(SALT_SIZE), f_in.read(16)
+                    data_size = file_size - SALT_SIZE - 32 # Salt + Nonce + Tag
+                    key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
+                    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+                    output_path = Path(str(target).replace(".aegis", ""))
+                    
+                    with open(output_path, 'wb') as f_out:
+                        while processed < data_size:
+                            chunk = f_in.read(min(buffer_size, data_size - processed))
+                            f_out.write(cipher.decrypt(chunk))
+                            processed += len(chunk)
+                            display_progress(processed, data_size, start_time)
+                        
+                        try:
+                            cipher.verify(f_in.read(16))
+                            duration = time.time() - start_time
+                            print(f"\n\n🔓 DECRYPTION SUCCESSFUL")
+                            print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(data_size/(1024*1024))/duration:.2f} MB/s")
+                        except:
+                            print("\n❌ INTEGRITY FAILURE: Wrong password or corrupt file.")
+                            f_out.close(); os.remove(output_path)
+        except Exception as e:
+            print(f"\n❌ CRITICAL ERROR: {e}")
+        
+        if input("\n🔄 Task complete. Process another file? (y/n): ").lower() != 'y':
             break
