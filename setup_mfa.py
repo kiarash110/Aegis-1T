@@ -5,6 +5,7 @@ import json
 import base64
 import time
 import sys
+import maskpass  # Added for secure, hidden password input
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from argon2 import PasswordHasher
@@ -18,20 +19,22 @@ PARALLELISM = 4
 
 def setup_aegis_vault():
     print("\n" + "="*55)
-    print("🛡️  AEGIS-1T: SYSTEM INITIALIZATION (200MB RAM MODE)")
+    print("🛡️  AEGIS-1T: SYSTEM INITIALIZATION (V1.0.2)")
     print("="*55)
     
     # 1. PHASE 1: MASTER PASSWORD
     print("\n[!] PHASE 1: MASTER PASSWORD CREATION")
+    print("👉 Passwords will be hidden. Hold [L-CTRL] to peek.")
     ph = PasswordHasher(memory_cost=MEM_COST, time_cost=TIME_COST, parallelism=PARALLELISM)
     
     while True:
-        mp = input("🔑 CREATE MASTER PASSWORD: ")
-        confirm = input("🔑 CONFIRM MASTER PASSWORD: ")
+        # Changed to maskpass.advpass for security
+        mp = maskpass.advpass(prompt="🔑 CREATE MASTER PASSWORD (min 6): ", mask="*")
+        confirm = maskpass.advpass(prompt="🔑 CONFIRM MASTER PASSWORD: ", mask="*")
         
         if mp == confirm:
-            if len(mp) < 12:
-                print("❌ ERROR: Password too short! Use 12+ characters.")
+            if len(mp) < 6: # Updated minimum requirement to 6 characters
+                print("❌ ERROR: Password too short! Safety requires 6+ characters.")
                 continue
             break
         print("❌ ERROR: Passwords do not match!")
@@ -80,6 +83,7 @@ def setup_aegis_vault():
     # 3. PHASE 3: VAULT SEALING
     print("\n[🔒] PHASE 3: SEALING THE VAULT...")
     
+    # Payloads are combined and encrypted into the vault
     secret_payload = f"MASTER_HASH={mp_hash}\nMFA_SECRET={mfa_secret}"
     salt = get_random_bytes(16)
     
@@ -103,24 +107,20 @@ def setup_aegis_vault():
         "ciphertext": base64.b64encode(ciphertext).decode()
     }
 
-    # FIX: Corrected the 'with open' syntax error here
     with open(".env.vault", "w") as f:
         json.dump(vault_data, f)
 
     print("\n" + "="*55)
     print("✅ SYSTEM INITIALIZED SUCCESSFULLY!")
     print("📍 VAULT CREATED: .env.vault")
-    print("⚠️  This setup script will now self-destruct.")
+    print("⚠️  This setup script will now self-destruct for security.")
     print("="*55 + "\n")
     
     # 4. SELF DESTRUCT LOGIC
-    # This schedules the deletion of this file after the script exits.
     if os.name == 'nt':
-        # Windows command to wait 1 second then delete this script
         cmd = f'start /b "" cmd /c timeout /t 1 > nul & del "{sys.argv[0]}"'
         os.system(cmd)
     else:
-        # Linux/Mac command
         os.system(f'rm "{sys.argv[0]}" &')
 
 if __name__ == "__main__":
