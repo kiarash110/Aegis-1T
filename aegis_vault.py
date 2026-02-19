@@ -1,4 +1,4 @@
-import os, pyotp, json, base64, maskpass, time
+import os, pyotp, json, base64, maskpass, time, psutil
 from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -7,8 +7,41 @@ from argon2.low_level import hash_secret_raw, Type
 # --- CORE CRYPTO CONFIGURATION ---
 MEM_COST, TIME_COST, PARALLELISM, SALT_SIZE = 204800, 4, 4, 16
 
+def system_audit():
+    """NEW: Audits RAM and ensures all dependencies are present"""
+    print("\n" + "═"*45)
+    print("🛡️  AEGIS-1T: SYSTEM PRE-FLIGHT CHECK")
+    print("═"*45)
+    
+    # 1. Check Libraries
+    print("\n📦 Checking Dependencies...")
+    required = ['pyotp', 'maskpass', 'cryptodome', 'argon2', 'psutil', 'PIL', 'qrcode']
+    for lib in required:
+        try:
+            if lib == 'cryptodome': __import__('Crypto')
+            elif lib == 'argon2': __import__('argon2')
+            else: __import__(lib)
+            print(f"  ✅ {lib} is active.")
+        except ImportError:
+            print(f"  ❌ {lib} is MISSING.")
+
+    # 2. Check RAM Headroom
+    print("\n🧠 Checking RAM Headroom...")
+    available_gb = psutil.virtual_memory().available / (1024**3)
+    print(f"  📊 Free RAM: {available_gb:.2f} GB")
+    
+    if available_gb >= 3.5:
+        print("  🚀 STATUS: NITRO READY (Option 3 Safe)")
+    elif available_gb >= 1.2:
+        print("  ⚡ STATUS: EXTREME READY (Option 2 Safe)")
+    else:
+        print("  🐢 STATUS: STANDARD ONLY (Option 1 Recommended)")
+    
+    print("\n" + "═"*45)
+    input("Press Enter to return to menu...")
+
 def select_buffer_mode(task_name):
-    """Change #5 & #6: Performance Profile Selector with RAM warnings"""
+    """Performance Profile Selector"""
     print(f"\n🚀 SELECT SPEED FOR {task_name.upper()}:")
     print(" [1] Standard (16MB Buffer)  - RAM Usage: ~100MB")
     print(" [2] Extreme  (512MB Buffer) - RAM Usage: ~1.2GB")
@@ -23,7 +56,7 @@ def select_buffer_mode(task_name):
     return 16 * 1024 * 1024
 
 def display_progress(current, total, start_time):
-    """Change #2: Progress bar with MB/s and ETA"""
+    """Progress bar with MB/s and ETA"""
     elapsed = time.time() - start_time
     percent = (current / total) * 100
     speed = (current / (1024 * 1024)) / elapsed if elapsed > 0 else 0
@@ -32,7 +65,7 @@ def display_progress(current, total, start_time):
     print(f"\r|{bar}| {percent:.1f}% - {speed:.2f} MB/s - ETA: {int(remaining)}s ", end='')
 
 def secure_shred(file_path):
-    """Change #1 & #8: Triple-confirm shredder with independent speed selection"""
+    """Triple-confirm shredder with independent speed selection"""
     print(f"\n\n🧹 SHREDDER INITIALIZED")
     shred_buffer = select_buffer_mode("Shredding")
     
@@ -51,7 +84,7 @@ def secure_shred(file_path):
                 chunk = min(shred_buffer, file_size - processed)
                 f.write(os.urandom(chunk))
                 f.flush()
-                os.fsync(f.fileno()) # Forces physical write to the SSD
+                os.fsync(f.fileno()) 
                 processed += chunk
                 display_progress(processed, file_size, start_time)
         os.remove(file_path)
@@ -79,21 +112,19 @@ if __name__ == "__main__":
         print("🛡️  AEGIS-1T | VERSION 1.0.2 | PERFORMANCE SUITE")
         print("="*60)
         
-        action = input("\n[E]ncrypt, [D]ecrypt, [Q]uit: ").upper()
+        action = input("\n[E]ncrypt, [D]ecrypt, [S]ystem Audit, [Q]uit: ").upper()
         if action == 'Q': break
+        if action == 'S': system_audit(); continue 
         if action not in ['E', 'D']: continue
 
         target = Path(input("\n👉 Drag File Here: ").strip().strip('"').strip("'"))
         if not target.exists():
             print("❌ File not found."); time.sleep(2); continue
 
-        # Change #9: Anti-Double Encryption Guard
         if action == 'E' and target.suffix == '.aegis':
             print("\n🛑 ERROR: This file is already encrypted (.aegis).")
-            print("Double encryption causes structural corruption and is blocked.")
             time.sleep(4); continue
 
-        # Change #10: Master Password Guard (Min 6 Characters)
         while True:
             print("\n" + "─"*55)
             print("🔒 SECURITY: Passwords show as '*'. Press [L-CTRL] to peek.")
@@ -108,11 +139,8 @@ if __name__ == "__main__":
 
         mfa_secret = vault.get("MFA_SECRET")
         file_pass = maskpass.advpass(prompt="🛡️  File-Specific Password: ", mask="*")
-        
-        # Performance Mode Selection
         buffer_size = select_buffer_mode("Processing")
         
-        # MFA Verification
         if not pyotp.TOTP(mfa_secret).verify(input("\n🛡️  Enter MFA code: ")):
             print("❌ MFA Invalid."); time.sleep(2); continue
 
@@ -135,7 +163,6 @@ if __name__ == "__main__":
                         display_progress(processed, file_size, start_time)
                     f_out.write(cipher.digest())
                 
-                # Change #7: Completion Report
                 duration = time.time() - start_time
                 print(f"\n\n✅ ENCRYPTION COMPLETE")
                 print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(file_size/(1024*1024))/duration:.2f} MB/s")
@@ -145,7 +172,7 @@ if __name__ == "__main__":
             elif action == 'D':
                 with open(target, 'rb') as f_in:
                     salt, nonce = f_in.read(SALT_SIZE), f_in.read(16)
-                    data_size = file_size - SALT_SIZE - 32 # Salt + Nonce + Tag
+                    data_size = file_size - SALT_SIZE - 32 
                     key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
                     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
                     output_path = Path(str(target).replace(".aegis", ""))
@@ -170,3 +197,4 @@ if __name__ == "__main__":
         
         if input("\n🔄 Task complete. Process another file? (y/n): ").lower() != 'y':
             break
+            
