@@ -5,3 +5,4 @@ qrcode
 python-dotenv
 pillow
 maskpass
+psutil
