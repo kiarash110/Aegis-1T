@@ -26,10 +26,16 @@ def system_audit():
 
 def select_buffer_mode(task_name):
     print(f"\n🚀 SELECT SPEED FOR {task_name.upper()}:")
-    print(" [1] Standard (16MB) | [2] Extreme (512MB) | [3] NITRO (1.5GB)")
-    choice = input(f"👉 Select Mode (1/2/3): ")
-    if choice == '3': return 1536 * 1024 * 1024
-    if choice == '2': return 512 * 1024 * 1024
+    print(" [1] Standard (16MB Buffer)  - RAM Usage: ~100MB")
+    print(" [2] Extreme  (512MB Buffer) - RAM Usage: ~1.2GB")
+    print(" [3] NITRO    (1.5GB Buffer) - RAM Usage: ~3.5GB+")
+    
+    choice = input(f"👉 Select {task_name} Mode (1/2/3): ")
+    if choice == '3':
+        print("🔥 NITRO ENABLED: Ensure you have 16GB+ System RAM available.")
+        return 1536 * 1024 * 1024
+    if choice == '2':
+        return 512 * 1024 * 1024
     return 16 * 1024 * 1024
 
 def display_progress(current, total, start_time):
@@ -41,27 +47,25 @@ def display_progress(current, total, start_time):
     print(f"\r|{bar}| {percent:.1f}% - {speed:.2f} MB/s - ETA: {int(remaining)}s ", end='')
 
 def secure_shred(file_path):
-    """FIX #1: Checks confirmation BEFORE asking for buffer speed"""
     if not file_path.exists(): return
-    
     print(f"\n\n🧹 SHREDDER INITIALIZED")
-    print(f"⚠️  CRITICAL: Shredding will permanently destroy: {file_path.name}")
     
-    # Triple Confirmation FIRST
-    if input("👉 Confirm Shredding? (y/n): ").lower() != 'y': return print("🚫 Shredding Canceled.")
-    if input("👉 ARE YOU SURE? (y/n): ").lower() != 'y': return print("🚫 Shredding Canceled.")
-    if input("👉 Final warning: Type 'DELETE' to proceed: ") != 'DELETE': return print("🚫 Shredding Canceled.")
+    # ASK CONFIRMATION FIRST
+    print(f"\n⚠️  CRITICAL: Shredding will permanently destroy: {file_path.name}")
+    if input("👉 Confirm Shredding? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
+    if input("👉 ARE YOU SURE? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
+    if input("👉 Final warning: Type 'DELETE' to proceed: ") != 'DELETE': return print("🚫 Canceled.")
 
-    # Speed Selection SECOND
+    # SELECT SPEED SECOND
     shred_buffer = select_buffer_mode("Shredding")
 
     if file_path.is_dir():
         shutil.rmtree(file_path)
-        print(f"✨ FOLDER SHREDDED SUCCESSFULLY.")
+        print(f"\n✨ SHRED COMPLETE: Folder deleted.")
     else:
         file_size = file_path.stat().st_size
         start_time, processed = time.time(), 0
-        print(f"\n🧹 Wiping original file...")
+        print(f"\n🧹 Wiping original file with random bytes...")
         try:
             with open(file_path, "wb") as f:
                 while processed < file_size:
@@ -72,7 +76,8 @@ def secure_shred(file_path):
                     processed += chunk
                     display_progress(processed, file_size, start_time)
             os.remove(file_path)
-            print(f"\n✨ FILE SHREDDED SUCCESSFULLY.")
+            total_time = time.time() - start_time
+            print(f"\n✨ SHRED COMPLETE: {total_time:.2f}s | Avg: {(file_size/(1024*1024))/total_time:.2f} MB/s")
         except Exception as e:
             print(f"\n❌ SHREDDING FAILED: {e}")
 
@@ -99,35 +104,43 @@ if __name__ == "__main__":
         if action == 'Q': break
         if action == 'S': system_audit(); continue 
 
-        path_raw = input("\n👉 Drag & Drop Path: ").strip().strip('"').strip("'")
-        target = Path(path_raw)
+        # RESTORED PROMPT
+        target_input = input("\n👉 Drag & Drop Or Type/Paste The Path: ").strip().strip('"').strip("'")
+        target = Path(target_input)
         if not target.exists():
-            print("❌ Path not found."); time.sleep(2); continue
+            print("❌ File not found."); time.sleep(2); continue
 
         is_folder = target.is_dir()
         temp_zip = None
 
         if action == 'E':
             if target.suffix == '.aegis':
-                print("\n🛑 ERROR: Already encrypted."); time.sleep(3); continue
+                print("\n🛑 ERROR: This file is already encrypted (.aegis).")
+                time.sleep(4); continue
             
             if is_folder:
-                print(f"📦 Bundling folder '{target.name}'...")
+                print(f"📦 Bundling folder '{target.name}' for encryption...")
                 temp_zip = target.with_name(target.name + "_bundle.zip")
-                # Updated zip logic to avoid path recursion
                 shutil.make_archive(str(temp_zip).replace('.zip', ''), 'zip', target)
                 target = temp_zip
 
-        # Passwords & MFA
-        master_pass = maskpass.advpass(prompt="🔑 Master Password: ", mask="*")
+        while True:
+            print("\n" + "─"*55)
+            print("🔒 SECURITY: Passwords show as '*'. Press [L-CTRL] to peek.")
+            print("─" * 55)
+            master_pass = maskpass.advpass(prompt="🔑 System Master Password: ", mask="*")
+            if len(master_pass) >= 6: break
+            print("⚠️  Master Password must be at least 6 characters.")
+
         vault = unlock_vault(master_pass)
         if not vault:
-            print("❌ Denied."); time.sleep(2); continue
+            print("❌ Access Denied."); time.sleep(2); continue
 
-        file_pass = maskpass.advpass(prompt="🛡️  File Password: ", mask="*")
+        mfa_secret = vault.get("MFA_SECRET")
+        file_pass = maskpass.advpass(prompt="🛡️  File-Specific Password: ", mask="*")
         buffer_size = select_buffer_mode("Processing")
         
-        if not pyotp.TOTP(vault.get("MFA_SECRET")).verify(input("\n🛡️  Enter MFA code: ")):
+        if not pyotp.TOTP(mfa_secret).verify(input("\n🛡️  Enter MFA code: ")):
             print("❌ MFA Invalid."); time.sleep(2); continue
 
         start_time, processed = time.time(), 0
@@ -149,23 +162,24 @@ if __name__ == "__main__":
                         display_progress(processed, file_size, start_time)
                     f_out.write(cipher.digest())
                 
+                duration = time.time() - start_time
                 print(f"\n\n✅ ENCRYPTION COMPLETE")
-                if is_folder: os.remove(target) # Clean up temp zip
-                secure_shred(Path(path_raw)) # Shred original source
+                print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(file_size/(1024*1024))/duration:.2f} MB/s")
+                print(f"📦 Final Size: {output_path.stat().st_size / (1024**3):.4f} GB")
+                
+                if is_folder: os.remove(target)
+                secure_shred(Path(target_input))
 
             elif action == 'D':
-                # FIX #2: Refined decryption pointer logic
                 with open(target, 'rb') as f_in:
                     salt = f_in.read(SALT_SIZE)
                     nonce = f_in.read(16)
-                    data_size = file_size - SALT_SIZE - 16 - 16 # Salt + Nonce + Tag
+                    # Correct math for GCM: File - Salt(16) - Nonce(16) - Tag(16)
+                    data_size = file_size - SALT_SIZE - 16 - 16 
                     
                     key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
                     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
-                    
-                    # Clean the suffix for output
-                    output_name = target.name.replace(".aegis", "")
-                    output_path = target.parent / output_name
+                    output_path = Path(str(target).replace(".aegis", ""))
                     
                     with open(output_path, 'wb') as f_out:
                         while processed < data_size:
@@ -174,24 +188,23 @@ if __name__ == "__main__":
                             processed += len(chunk)
                             display_progress(processed, data_size, start_time)
                         
-                        tag = f_in.read(16)
                         try:
+                            tag = f_in.read(16)
                             cipher.verify(tag)
+                            duration = time.time() - start_time
                             print(f"\n\n🔓 DECRYPTION SUCCESSFUL")
+                            print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(data_size/(1024*1024))/duration:.2f} MB/s")
                             
-                            # Auto-Unbundle Check
                             if "_bundle.zip" in output_path.name:
-                                print(f"📦 Unbundling folder...")
+                                print(f"📦 Unbundling folder content...")
                                 final_dir = output_path.parent / output_path.name.replace("_bundle.zip", "")
                                 shutil.unpack_archive(str(output_path), str(final_dir), 'zip')
                                 os.remove(output_path)
-                        except Exception as ve:
-                            f_out.close()
-                            if output_path.exists(): os.remove(output_path)
-                            print(f"\n❌ INTEGRITY FAILURE: Wrong password or corrupt data. {ve}")
-
+                        except:
+                            print("\n❌ INTEGRITY FAILURE: Wrong password or corrupt file.")
+                            f_out.close(); os.remove(output_path)
         except Exception as e:
             print(f"\n❌ CRITICAL ERROR: {e}")
         
-        if input("\n🔄 Task complete. Process another? (y/n): ").lower() != 'y':
+        if input("\n🔄 Task complete. Process another file? (y/n): ").lower() != 'y':
             break
