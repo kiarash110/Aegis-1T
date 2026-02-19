@@ -96,7 +96,7 @@ if __name__ == "__main__":
         # Change #10: Master Password Guard (Min 6 Characters)
         while True:
             print("\n" + "─"*55)
-            print("🔒 SECURITY: Passwords show as '*'. Hold [L-CTRL] to peek.")
+            print("🔒 SECURITY: Passwords show as '*'. Press [L-CTRL] to peek.")
             print("─" * 55)
             master_pass = maskpass.advpass(prompt="🔑 System Master Password: ", mask="*")
             if len(master_pass) >= 6: break
