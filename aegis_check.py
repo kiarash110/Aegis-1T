@@ -1,22 +1,22 @@
-@echo off
-title AEGIS-1T | NITRO VAULT v1.0.2
-mode con: cols=90 lines=35
-color 0A
+import os
+import sys
+import shutil
+import time
 
-echo 🚀 Initializing AEGIS-1T Environment...
+def run_diagnostic():
+    print("🔍 [1/2] CHECKING LIBRARIES...")
+    # List of modules we need
+    modules = ['pyotp', 'qrcode', 'Crypto', 'argon2', 'maskpass']
+    for mod in modules:
+        try:
+            __import__(mod)
+            print(f"  ✅ {mod} is detected.")
+        except ImportError:
+            print(f"  ❌ {mod} is MISSING. Run: pip install {mod}")
 
-:: Cleanup Python Cache to prevent bloat
-echo 🧹 Cleaning temporary cache files...
-del /s /q *.pyc >nul 2>&1
-for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d" >nul 2>&1
+    print("\n🔍 [2/2] CHECKING STORAGE...")
+    _, _, free = shutil.disk_usage(".")
+    print(f"  📂 Free Space: {free / (1024**3):.2f} GB")
 
-echo ✅ Environment Clean.
-echo.
-echo 🛡️  Launching Main Security Suite...
-echo ------------------------------------------------------
-python aegis_main.py
-echo ------------------------------------------------------
-
-echo.
-echo [!] Aegis Session Terminated.
-pause
+if __name__ == "__main__":
+    run_diagnostic()
