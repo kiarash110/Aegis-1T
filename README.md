@@ -17,6 +17,13 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 * **🧹 Secure Shredder**
     Includes a "Zero-Fill" protocol that overwrites data with null bytes (`0x00`) before deletion to prevent forensic recovery.
 
+* **🏎️ The system now features Nitro Mode for 1TB+ file transfers.*
+
+* **🟢 Standard Mode: 16MB Buffer | Recommended for 4GB RAM systems. 🧱*
+
+* **🟡 Extreme Mode: 512MB Buffer | Recommended for 8GB RAM systems. ⚡*
+
+* **🔴 NITRO Mode: 1.5GB Buffer | Requires 16GB+ RAM. Do not use on low-end hardware. 🔥*
 ---
 
 ## **🛠️ TECHNICAL STACK**
@@ -100,6 +107,7 @@ maskpass
 ## *STEP 1: Scan the mfa_setup.png into your mobile app.*
 ## *STEP 2: DELETE THE PNG FILE FROM YOUR DISK IMMEDIATELY.*
 ## *STEP 3: Never store a digital copy of your QR code on any device connected to the internet.*
+## *Anti-Corruption: The script will automatically block encryption of any file ending in .aegis. This prevents double-encryption which can lead to permanent data loss.*
 
 ---
 
