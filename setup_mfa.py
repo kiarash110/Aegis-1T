@@ -24,7 +24,7 @@ def setup_aegis_vault():
     
     # 1. PHASE 1: MASTER PASSWORD
     print("\n[!] PHASE 1: MASTER PASSWORD CREATION")
-    print("👉 Passwords will be hidden. Hold [L-CTRL] to peek.")
+    print("👉 Passwords will be hidden. Press [L-CTRL] to peek.")
     ph = PasswordHasher(memory_cost=MEM_COST, time_cost=TIME_COST, parallelism=PARALLELISM)
     
     while True:
