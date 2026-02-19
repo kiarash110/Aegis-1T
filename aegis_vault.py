@@ -50,13 +50,13 @@ def secure_shred(file_path):
     if not file_path.exists(): return
     print(f"\n\n🧹 SHREDDER INITIALIZED")
     
-    # ASK CONFIRMATION FIRST
+    # CONFIRMATION FIRST
     print(f"\n⚠️  CRITICAL: Shredding will permanently destroy: {file_path.name}")
     if input("👉 Confirm Shredding? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
     if input("👉 ARE YOU SURE? (y/n): ").lower() != 'y': return print("🚫 Canceled.")
     if input("👉 Final warning: Type 'DELETE' to proceed: ") != 'DELETE': return print("🚫 Canceled.")
 
-    # SELECT SPEED SECOND
+    # SPEED SECOND
     shred_buffer = select_buffer_mode("Shredding")
 
     if file_path.is_dir():
@@ -97,14 +97,13 @@ if __name__ == "__main__":
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("="*60)
-        print("🛡️  AEGIS-1T | VERSION 1.0.3 | PERFORMANCE SUITE")
+        print("🛡️  AEGIS-1T | VERSION 1.0.4 | PERFORMANCE SUITE")
         print("="*60)
         
         action = input("\n[E]ncrypt, [D]ecrypt, [S]ystem Audit, [Q]uit: ").upper()
         if action == 'Q': break
         if action == 'S': system_audit(); continue 
 
-        # RESTORED PROMPT
         target_input = input("\n👉 Drag & Drop Or Type/Paste The Path: ").strip().strip('"').strip("'")
         target = Path(target_input)
         if not target.exists():
@@ -171,10 +170,10 @@ if __name__ == "__main__":
                 secure_shred(Path(target_input))
 
             elif action == 'D':
+                # FIXED DECRYPTION FLOW
                 with open(target, 'rb') as f_in:
                     salt = f_in.read(SALT_SIZE)
                     nonce = f_in.read(16)
-                    # Correct math for GCM: File - Salt(16) - Nonce(16) - Tag(16)
                     data_size = file_size - SALT_SIZE - 16 - 16 
                     
                     key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
@@ -187,22 +186,23 @@ if __name__ == "__main__":
                             f_out.write(cipher.decrypt(chunk))
                             processed += len(chunk)
                             display_progress(processed, data_size, start_time)
+                        tag = f_in.read(16)
+                    
+                    # Verify AFTER the file is closed
+                    try:
+                        cipher.verify(tag)
+                        duration = time.time() - start_time
+                        print(f"\n\n🔓 DECRYPTION SUCCESSFUL")
+                        print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(data_size/(1024*1024))/duration:.2f} MB/s")
                         
-                        try:
-                            tag = f_in.read(16)
-                            cipher.verify(tag)
-                            duration = time.time() - start_time
-                            print(f"\n\n🔓 DECRYPTION SUCCESSFUL")
-                            print(f"📊 Time: {int(duration // 60)}m {int(duration % 60)}s | Speed: {(data_size/(1024*1024))/duration:.2f} MB/s")
-                            
-                            if "_bundle.zip" in output_path.name:
-                                print(f"📦 Unbundling folder content...")
-                                final_dir = output_path.parent / output_path.name.replace("_bundle.zip", "")
-                                shutil.unpack_archive(str(output_path), str(final_dir), 'zip')
-                                os.remove(output_path)
-                        except:
-                            print("\n❌ INTEGRITY FAILURE: Wrong password or corrupt file.")
-                            f_out.close(); os.remove(output_path)
+                        if "_bundle.zip" in output_path.name:
+                            print(f"📦 Unbundling folder content...")
+                            final_dir = output_path.parent / output_path.name.replace("_bundle.zip", "")
+                            shutil.unpack_archive(str(output_path), str(final_dir), 'zip')
+                            os.remove(output_path)
+                    except:
+                        if output_path.exists(): os.remove(output_path)
+                        print("\n❌ INTEGRITY FAILURE: Wrong password or corrupt file.")
         except Exception as e:
             print(f"\n❌ CRITICAL ERROR: {e}")
         
