@@ -97,7 +97,7 @@ if __name__ == "__main__":
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("="*60)
-        print("🛡️  AEGIS-1T | VERSION 1.0.4 | PERFORMANCE SUITE")
+        print("🛡️  AEGIS-1T | VERSION 1.0.5 | PERFORMANCE SUITE")
         print("="*60)
         
         action = input("\n[E]ncrypt, [D]ecrypt, [S]ystem Audit, [Q]uit: ").upper()
@@ -109,20 +109,7 @@ if __name__ == "__main__":
         if not target.exists():
             print("❌ File not found."); time.sleep(2); continue
 
-        is_folder = target.is_dir()
-        temp_zip = None
-
-        if action == 'E':
-            if target.suffix == '.aegis':
-                print("\n🛑 ERROR: This file is already encrypted (.aegis).")
-                time.sleep(4); continue
-            
-            if is_folder:
-                print(f"📦 Bundling folder '{target.name}' for encryption...")
-                temp_zip = target.with_name(target.name + "_bundle.zip")
-                shutil.make_archive(str(temp_zip).replace('.zip', ''), 'zip', target)
-                target = temp_zip
-
+        # 1. Password Step
         while True:
             print("\n" + "─"*55)
             print("🔒 SECURITY: Passwords show as '*'. Press [L-CTRL] to peek.")
@@ -135,18 +122,31 @@ if __name__ == "__main__":
         if not vault:
             print("❌ Access Denied."); time.sleep(2); continue
 
-        mfa_secret = vault.get("MFA_SECRET")
-        file_pass = maskpass.advpass(prompt="🛡️  File-Specific Password: ", mask="*")
-        buffer_size = select_buffer_mode("Processing")
-        
-        if not pyotp.TOTP(mfa_secret).verify(input("\n🛡️  Enter MFA code: ")):
+        # 2. MFA Step (Moved up before any file processing)
+        if not pyotp.TOTP(vault.get("MFA_SECRET")).verify(input("\n🛡️  Enter MFA code: ")):
             print("❌ MFA Invalid."); time.sleep(2); continue
 
-        start_time, processed = time.time(), 0
-        file_size = target.stat().st_size
-        
+        # 3. File Password & Speed Selection
+        file_pass = maskpass.advpass(prompt="🛡️  File-Specific Password: ", mask="*")
+        buffer_size = select_buffer_mode("Processing")
+
+        is_folder = target.is_dir()
+        temp_zip = None
+
         try:
             if action == 'E':
+                if target.suffix == '.aegis':
+                    print("\n🛑 ERROR: Already encrypted."); time.sleep(4); continue
+                
+                # Bundle ONLY if MFA passed
+                if is_folder:
+                    print(f"📦 Bundling folder '{target.name}' for encryption...")
+                    temp_zip = target.with_name(target.name + "_bundle.zip")
+                    shutil.make_archive(str(temp_zip).replace('.zip', ''), 'zip', target)
+                    target = temp_zip
+
+                start_time, processed = time.time(), 0
+                file_size = target.stat().st_size
                 salt = get_random_bytes(SALT_SIZE)
                 key = hash_secret_raw(file_pass.encode(), salt=salt, time_cost=TIME_COST, memory_cost=MEM_COST, parallelism=PARALLELISM, hash_len=32, type=Type.ID)
                 cipher = AES.new(key, AES.MODE_GCM)
@@ -170,7 +170,8 @@ if __name__ == "__main__":
                 secure_shred(Path(target_input))
 
             elif action == 'D':
-                # FIXED DECRYPTION FLOW
+                start_time, processed = time.time(), 0
+                file_size = target.stat().st_size
                 with open(target, 'rb') as f_in:
                     salt = f_in.read(SALT_SIZE)
                     nonce = f_in.read(16)
@@ -188,7 +189,6 @@ if __name__ == "__main__":
                             display_progress(processed, data_size, start_time)
                         tag = f_in.read(16)
                     
-                    # Verify AFTER the file is closed
                     try:
                         cipher.verify(tag)
                         duration = time.time() - start_time
