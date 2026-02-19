@@ -17,13 +17,13 @@ Aegis-1T is a high-performance cryptographic utility designed to secure sensitiv
 * **🧹 Secure Shredder**
     Includes a "Zero-Fill" protocol that overwrites data with null bytes (`0x00`) before deletion to prevent forensic recovery.
 
-* **🏎️ The system now features Nitro Mode for 1TB+ file transfers.*
+* *🏎️ The system now features Nitro Mode for 1TB+ file transfers.*
 
-* **🟢 Standard Mode: 16MB Buffer | Recommended for 4GB RAM systems. 🧱*
+* *🟢 Standard Mode: 16MB Buffer | Recommended for 4GB RAM systems. 🧱*
 
-* **🟡 Extreme Mode: 512MB Buffer | Recommended for 8GB RAM systems. ⚡*
+* *🟡 Extreme Mode: 512MB Buffer | Recommended for 8GB RAM systems. ⚡*
 
-* **🔴 NITRO Mode: 1.5GB Buffer | Requires 16GB+ RAM. Do not use on low-end hardware. 🔥*
+* *🔴 NITRO Mode: 1.5GB Buffer | Requires 16GB+ RAM. Do not use on low-end hardware. 🔥*
 ---
 
 ## **🛠️ TECHNICAL STACK**
