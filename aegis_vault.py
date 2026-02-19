@@ -117,7 +117,7 @@ if __name__ == "__main__":
         if action == 'S': system_audit(); continue 
         if action not in ['E', 'D']: continue
 
-        target = Path(input("\n👉 Drag File Here: ").strip().strip('"').strip("'"))
+        target = Path(input("\n👉 Drag & Drop Or Type/Paste The Path: ").strip().strip('"').strip("'"))
         if not target.exists():
             print("❌ File not found."); time.sleep(2); continue
 
